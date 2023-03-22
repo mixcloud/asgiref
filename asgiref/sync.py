@@ -226,8 +226,7 @@ class AsyncToSync:
                 del self.loop_thread_executors[loop]
             _restore_context(context[0])
             # Restore old current thread executor state
-            if old_current_executor:
-                self.executors.current = old_current_executor
+            self.executors.current = old_current_executor
 
         # Wait for results from the future.
         return call_result.result()
