@@ -117,6 +117,8 @@ class AsyncToSync:
     finally exiting once the async task returns.
     """
 
+    # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
+    # Local, not a threadlocal, so that tasks can work out what their parent used.
     executors = Local()
 
     # When we can't find a CurrentThreadExecutor from the context, such as
@@ -180,7 +182,7 @@ class AsyncToSync:
         # Make a CurrentThreadExecutor we'll use to idle in this thread - we
         # need one for every sync frame, even if there's one above us in the
         # same thread.
-        old_executor = getattr(self.executors, "current", None)
+        old_current_executor = getattr(self.executors, "current", None)
         current_executor = CurrentThreadExecutor()
         self.executors.current = current_executor
 
@@ -224,7 +226,8 @@ class AsyncToSync:
                 del self.loop_thread_executors[loop]
             _restore_context(context[0])
             # Restore old current thread executor state
-            self.executors.current = old_executor
+            if old_current_executor:
+                self.executors.current = old_current_executor
 
         # Wait for results from the future.
         return call_result.result()
@@ -373,10 +376,9 @@ class SyncToAsync:
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
-            current_thread_executor = getattr(AsyncToSync.executors, "current", None)
-            if current_thread_executor:
+            if hasattr(AsyncToSync.executors, "current"):
                 # If we have a parent sync thread above somewhere, use that
-                executor = current_thread_executor
+                executor = AsyncToSync.executors.current
             elif self.thread_sensitive_context.get(None):
                 # If we have a way of retrieving the current context, attempt
                 # to use a per-context thread pool executor
