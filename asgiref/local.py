@@ -1,13 +1,16 @@
 import contextlib
 import contextvars
 import threading
+from typing import Union, Dict, Any
 
 
 class _CVar:
     """Storage utility for Local."""
 
-    def __init__(self):
-        self._data = contextvars.ContextVar("asgiref.local")
+    def __init__(self) -> None:
+        self._data: "contextvars.ContextVar[Dict[str, Any]]" = contextvars.ContextVar(
+            "asgiref.local"
+        )
 
     def __getattr__(self, key):
         storage_object = self._data.get({})
@@ -70,6 +73,7 @@ class Local:
     def __init__(self, thread_critical: bool = False) -> None:
         self._thread_critical = thread_critical
         self._thread_lock = threading.RLock()
+        self._storage: "Union[threading.local, _CVar]"
 
         if thread_critical:
             # Thread-local storage
