@@ -66,6 +66,8 @@ class Local:
     happens when the thread is spawned by `async_to_sync`. If
     `thread_critical` is set to `True`, the data will always be thread-local
     and will not be transferred to new threads even when using `async_to_sync`.
+    In other words, when `thread_critical` is `True`, this is a thin wrapper
+    around `threading.local`.
 
     Unlike plain `contextvars` objects, this utility is threadsafe.
     """
@@ -86,14 +88,10 @@ class Local:
     def _lock_storage(self):
         # Thread safe access to storage
         if self._thread_critical:
-            # Ensure context exists in the current thread
-            if not hasattr(self._storage, "cvar"):
-                self._storage.cvar = _CVar()
-
             # self._storage is a thread local, so the members
             # can't be accessed in another thread (we don't
             # need any locks)
-            yield self._storage.cvar
+            yield self._storage
         else:
             # Lock for thread_critical=False as other threads
             # can access the exact same storage object
